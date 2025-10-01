@@ -1,0 +1,11 @@
+[package]
+name = "russ"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crossterm = "0.29.0"
+ratatui = "0.29.0"
+reqwest = "0.12.23"
+rss = { version = "2.0.12", features = ["validation"]}
+tokio = { version = "1.47.1", features = ["full"] }
