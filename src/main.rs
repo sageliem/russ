@@ -1,83 +1,90 @@
-use std::error::Error;
-use std::io;
-use std::vec::Vec;
-use rss::Channel;
-use rss::validation::Validate;
-use crossterm::event::{self, Event};
+use std::{error::Error, io};
+
 use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::Stylize,
-    symbols::border,
-    text::{Line, Text},
-    widgets::{Block, Paragraph, Widget},
-    DefaultTerminal, Frame};
+    Terminal,
+    backend::{Backend, CrosstermBackend},
+    crossterm::{
+        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+        execute,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+};
 
-#[derive(Debug, Default)]
-pub struct App {
-    feeds: Vec<Channel>,
-    exit: bool,
-}
+mod app;
+mod ui;
 
-async fn get_channel(url: &str) -> Result<Channel, Box<dyn Error>> {
-    let content = reqwest::get(url)
-        .await?
-        .bytes()
-        .await?;
-    let channel = Channel::read_from(&content[..])?;
-    Ok(channel)
-}
+use crate::{
+    app::{App, Screen},
+    ui::ui,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // let channel = get_channel("https://100r.ca/links/rss.xml")
-    let channel = get_channel("https://ictnews.org/feed/")
-        .await?;
-    channel.validate().unwrap();
+    enable_raw_mode()?;
+    let mut stderr = io::stderr();
+    execute!(stderr, EnterAlternateScreen, EnableMouseCapture)?;
 
-    let mut terminal = ratatui::init();
-    let mut app = App::default();
-    app.feeds.push(channel);
+    let backend = CrosstermBackend::new(stderr);
+    let mut terminal = Terminal::new(backend)?;
 
-    let result = app.run(&mut terminal);
-    ratatui::restore();
-   Ok(()) 
+    let mut app = App::new();
+
+    app.add_channel("https://ictnews.org/feed").await?;
+    app.add_channel("https://aartaka.me/rss.xml").await?;
+    app.add_channel("https://daniel.haxx.se/blog/feed/").await?;
+
+    app.init();
+
+    let res = run_app(&mut terminal, &mut app);
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture,
+    )?;
+    terminal.show_cursor()?;
+
+    if let Ok(do_print) = res {
+        if do_print {}
+    } else if let Err(err) = res {
+        println!("{err:?}");
+    }
+
+    Ok(())
 }
 
-impl Widget for &App {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from("Reader".bold());
+fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<bool> {
+    loop {
+        terminal.draw(|f| ui(f, app))?;
 
-        let block = Block::bordered()
-            .title(title.centered())
-            .border_set(border::THICK);
-
-        let text: &str = &self.feeds[0].items()[0].content().unwrap();
-        Paragraph::new(text)
-            .centered()
-            .block(block)
-            .render(area, buf);
-    }
-}
-
-impl App {
-
-    fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        while !self.exit {
-            terminal.draw(|frame| self.draw(frame))?;
-            self.handle_events()?;
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Release {
+                continue;
+            }
+            match app.current_screen {
+                Screen::MainMenu => match key.code {
+                    KeyCode::Char('q') => {
+                        app.current_screen = Screen::Exiting;
+                    }
+                    _ => {}
+                },
+                Screen::Exiting => match key.code {
+                    KeyCode::Char('y') => {
+                        return Ok(true);
+                    }
+                    KeyCode::Char('n') | KeyCode::Char('q') => {
+                        return Ok(false);
+                    }
+                    _ => {}
+                },
+                Screen::Reader => {
+                    continue;
+                }
+                Screen::FeedMenu => {
+                    continue;
+                }
+            }
         }
-        Ok(())
-    }
-
-    fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
-    }
-
-    fn handle_events(&mut self) -> io::Result<()> {
-        if matches!(event::read()?, Event::Key(_)) {
-            self.exit = true;
-        }
-        Ok(())
     }
 }
