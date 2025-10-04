@@ -1,0 +1,4 @@
+[main]
+feed_dir = "./feeds/"
+config_dir = "~/.config/russ/"
+
