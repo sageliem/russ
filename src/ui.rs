@@ -6,7 +6,37 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 
+use crate::component::Component;
 use crate::app::{App, Screen};
+
+trait Menu {
+    fn nav(&mut self, ev: Event) {
+        
+    }
+}
+
+struct ChannelMenu {
+    items: Vec<Channel>,
+    state: ListState,
+}
+
+impl<T: Menu> Component for MainMenu {
+    
+}
+
+struct PostMenu {
+    items: Vec<Item>,
+    state: ListState
+}
+
+impl<T:Menu> Component for PostMenu {
+
+}
+
+struct Reader {
+}
+
+
 
 pub fn ui(frame: &mut Frame, app: &App) {
     let chunks = Layout::default()
