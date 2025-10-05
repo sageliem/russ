@@ -5,9 +5,10 @@ edition = "2024"
 
 [dependencies]
 crossterm = "0.29.0"
-md5 = "0.8.0"
 ratatui = "0.29.0"
 reqwest = "0.12.23"
 rss = { version = "2.0.12", features = ["validation"]}
+serde = "1.0.228"
+serde-xml-rs = "0.8.1"
 terminal = "0.2.1"
 tokio = { version = "1.47.1", features = ["full"] }
