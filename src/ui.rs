@@ -1,44 +1,14 @@
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-use crate::component::Component;
 use crate::app::{App, Screen};
 
-trait Menu {
-    fn nav(&mut self, ev: Event) {
-        
-    }
-}
-
-struct ChannelMenu {
-    items: Vec<Channel>,
-    state: ListState,
-}
-
-impl<T: Menu> Component for MainMenu {
-    
-}
-
-struct PostMenu {
-    items: Vec<Item>,
-    state: ListState
-}
-
-impl<T:Menu> Component for PostMenu {
-
-}
-
-struct Reader {
-}
-
-
-
-pub fn ui(frame: &mut Frame, app: &App) {
+pub fn ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -57,18 +27,45 @@ pub fn ui(frame: &mut Frame, app: &App) {
 
     frame.render_widget(title, chunks[0]);
 
-    let mut feed_titles = Vec::<ListItem>::new();
+    match &app.current_screen {
+        Screen::MainMenu => {
+            let mut feed_titles = Vec::<ListItem>::new();
 
-    for feed in &app.feeds {
-        feed_titles.push(ListItem::new(Line::from(Span::styled(
-            format!("{}", feed.title()),
-            Style::default().fg(Color::Yellow),
-        ))));
+            for feed in &app.channels.items {
+                feed_titles.push(ListItem::new(Line::from(Span::styled(
+                    format!("{}", feed.channel.title()),
+                    Style::default().fg(Color::Yellow),
+                ))));
+            }
+
+            let feed_list = List::new(feed_titles)
+                .highlight_style(Style::new().bg(Color::Green).add_modifier(Modifier::BOLD));
+
+            frame.render_stateful_widget(feed_list, chunks[1], &mut app.channels.state);
+        }
+        Screen::FeedMenu => {
+            let mut post_titles = Vec::<ListItem>::new();
+
+            match app.channels.currently_viewing {
+                Some(i) => {
+                    for post in app.channels.items[i].channel.items() {
+                        post_titles.push(ListItem::new(Line::from(Span::styled(
+                            format!("{}", post.title().unwrap()),
+                            Style::default().fg(Color::Green),
+                        ))));
+                    }
+                    let posts_list = List::new(post_titles).highlight_style(
+                        Style::new().bg(Color::Green).add_modifier(Modifier::BOLD),
+                    );
+                    frame.render_stateful_widget(posts_list, chunks[1], &mut app.channels.items[i].state);
+                }
+                None => {
+                    frame.render_widget(Paragraph::new("No feed selected."), chunks[1]);
+                }
+            }
+        }
+        _ => {}
     }
-
-    let feed_list = List::new(feed_titles);
-
-    frame.render_widget(feed_list, chunks[1]);
 }
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`
