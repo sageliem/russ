@@ -1,4 +1,4 @@
-use rss::Channel;
+use rss::{Channel, Item};
 use std::{
     error::Error,
     fs::{self, DirEntry, File},
@@ -6,6 +6,7 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
+use ratatui::widgets::ListState;
 
 pub enum Screen {
     Reader,
@@ -20,17 +21,42 @@ impl Default for Screen {
     }
 }
 
-#[derive(Default)]
+pub struct ChannelList {
+    pub items: Vec<Feed>,
+    pub state: ListState,
+    pub currently_viewing: Option<usize>,
+}
+
+pub struct Feed {
+    pub channel: Channel,
+    pub state: ListState,
+    pub currently_viewing: Option<usize>,
+}
+
+impl Feed {
+    pub fn from(channel: Channel) -> Feed {
+        Feed {
+            channel: channel,
+            state: ListState::default().with_selected(Some(0)),
+            currently_viewing: None,
+        }
+    }
+}
+
 pub struct App {
     pub current_screen: Screen,
-    pub feeds: Vec<Channel>,
+    pub channels: ChannelList,
 }
 
 impl App {
     pub fn new() -> App {
         App {
             current_screen: Screen::default(),
-            feeds: Vec::new(),
+            channels: ChannelList {
+                items: Vec::new(),
+                state: ListState::default().with_selected(Some(0)),
+                currently_viewing: None,
+            },
         }
     }
 
@@ -45,7 +71,7 @@ impl App {
         for feed in fs::read_dir(&Path::new("feeds/"))? {
             let feed = File::open(feed?.path())?;
             let channel = Channel::read_from(BufReader::new(feed))?;
-            self.feeds.push(channel);
+            self.channels.items.push(Feed::from(channel));
         }
 
         Ok(())
