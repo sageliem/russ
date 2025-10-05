@@ -67,6 +67,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     KeyCode::Char('q') => {
                         app.current_screen = Screen::Exiting;
                     }
+                    KeyCode::Char('j') => app.channels.state.select_next(),
+                    KeyCode::Char('k') => app.channels.state.select_previous(),
+                    KeyCode::Enter => {
+                        app.channels.currently_viewing = app.channels.state.selected();
+                        app.current_screen = Screen::FeedMenu;
+                    }
                     _ => {}
                 },
                 Screen::Exiting => match key.code {
@@ -81,9 +87,20 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                 Screen::Reader => {
                     continue;
                 }
-                Screen::FeedMenu => {
-                    continue;
-                }
+                Screen::FeedMenu => match key.code {
+                    KeyCode::Char('q') => {
+                        app.current_screen = Screen::Exiting;
+                    }
+                    KeyCode::Char('j') => {
+                        let ch = app.channels.state.selected();
+                        app.channels.items[ch.unwrap()].state.select_next();
+                    }
+                    KeyCode::Char('k') => {
+                        let ch = app.channels.state.selected();
+                        app.channels.items[ch.unwrap()].state.select_previous();
+                    }
+                    _ => {}
+                },
             }
         }
     }
