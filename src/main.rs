@@ -30,10 +30,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::new();
 
     app.add_channel("https://ictnews.org/feed").await?;
-    app.add_channel("https://aartaka.me/rss.xml").await?;
     app.add_channel("https://daniel.haxx.se/blog/feed/").await?;
 
-    app.init();
+    app.load_all()?;
 
     let res = run_app(&mut terminal, &mut app);
 
@@ -67,10 +66,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     KeyCode::Char('q') => {
                         app.current_screen = Screen::Exiting;
                     }
-                    KeyCode::Char('j') => app.channels.state.select_next(),
-                    KeyCode::Char('k') => app.channels.state.select_previous(),
+                    KeyCode::Char('j') => app.index.state.select_next(),
+                    KeyCode::Char('k') => app.index.state.select_previous(),
                     KeyCode::Enter => {
-                        app.channels.currently_viewing = app.channels.state.selected();
                         app.current_screen = Screen::FeedMenu;
                     }
                     _ => {}
@@ -84,20 +82,38 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     }
                     _ => {}
                 },
-                Screen::Reader => {
-                    continue;
+                Screen::Reader => match key.code {
+                    KeyCode::Char('q') => {
+                        app.current_screen = Screen::FeedMenu;
+                    }
+                    KeyCode::Char('j') => {
+                        let ch = app.index.state.selected().unwrap();
+                        let p = app.feeds[ch].state.selected().unwrap();
+                        app.feeds[ch].posts[p].scroll_down();
+                    }
+                    KeyCode::Char('k') => {
+                        let ch = app.index.state.selected().unwrap();
+                        let p = app.feeds[ch].state.selected().unwrap();
+                        app.feeds[ch].posts[p].scroll_up();
+                    }
+                    _ => {}
                 }
                 Screen::FeedMenu => match key.code {
                     KeyCode::Char('q') => {
-                        app.current_screen = Screen::Exiting;
+                        app.current_screen = Screen::MainMenu;
                     }
                     KeyCode::Char('j') => {
-                        let ch = app.channels.state.selected();
-                        app.channels.items[ch.unwrap()].state.select_next();
+                        let ch = app.index.state.selected().unwrap();
+                        app.feeds[ch].state.select_next();
                     }
                     KeyCode::Char('k') => {
-                        let ch = app.channels.state.selected();
-                        app.channels.items[ch.unwrap()].state.select_previous();
+                        let ch = app.index.state.selected().unwrap();
+                        app.feeds[ch].state.select_previous();
+                    }
+                    KeyCode::Enter => {
+                        let ch = app.index.state.selected().unwrap();
+                        let p = app.feeds[ch].state.selected().unwrap();
+                        app.current_screen = Screen::Reader;
                     }
                     _ => {}
                 },
