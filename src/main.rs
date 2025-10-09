@@ -20,19 +20,21 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+
+    let mut app = App::new();
+
+    app.load_from_config().await?;
+    // app.add_channel("https://ictnews.org/feed").await?;
+    // app.add_channel("https://daniel.haxx.se/blog/feed/").await?;
+
+    app.load_all()?;
+
     enable_raw_mode()?;
     let mut stderr = io::stderr();
     execute!(stderr, EnterAlternateScreen, EnableMouseCapture)?;
 
     let backend = CrosstermBackend::new(stderr);
     let mut terminal = Terminal::new(backend)?;
-
-    let mut app = App::new();
-
-    app.add_channel("https://ictnews.org/feed").await?;
-    app.add_channel("https://daniel.haxx.se/blog/feed/").await?;
-
-    app.load_all()?;
 
     let res = run_app(&mut terminal, &mut app);
 

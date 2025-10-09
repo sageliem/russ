@@ -1,6 +1,8 @@
 use html2text::from_read;
 use ratatui::{crossterm::terminal, widgets::ListState};
 use rss::{Channel, Item};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json;
 use std::{
     error::Error,
     fs::{self, DirEntry, File},
@@ -8,7 +10,7 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
-use serde::{Serializer, Deserializer, Deserialize, Serialize};
+use toml::Table;
 
 pub enum Screen {
     Reader,
@@ -54,6 +56,13 @@ pub struct Feed {
     pub state: ListState,
 }
 
+#[derive(Deserialize)]
+pub struct Config {
+    pub feed_dir: String,
+    pub config_dir: String,
+    pub feeds: Vec<String>,
+}
+
 impl Feed {
     pub fn from_channel(channel: Channel) -> Result<Feed, Box<dyn Error>> {
         let mut posts = Vec::new();
@@ -85,7 +94,7 @@ impl Feed {
 
         let mut hasher = DefaultHasher::new();
         self.meta.url.hash(&mut hasher);
-        let path = Path::new("feeds/").join(hasher.finish().to_string());
+        let path = Path::new("./feeds/").join(hasher.finish().to_string());
         if !path.exists() {
             let mut file = File::create(path)?;
             file.write_all(serialized.as_ref())?;
@@ -151,6 +160,19 @@ impl App {
         }
     }
 
+    pub async fn load_from_config(&mut self) -> Result<(), Box<dyn Error>> {
+        let path = Path::new("./config.toml");
+        let config_str = fs::read_to_string(path).expect("Failed to read configuration file.");
+        let config: Config = toml::from_str(&config_str)?;
+
+        for url in config.feeds {
+            println!("Adding feed {}", url);
+            self.add_channel(&url.as_str()).await?;
+        }
+
+        Ok(())
+    }
+
     pub fn save_index(&self) {
         self.index.save();
     }
@@ -173,13 +195,22 @@ impl App {
         //         return Ok(());
         //     }
         // }
+        if !Path::exists(Path::new("feeds")) {
+            fs::create_dir("./feeds/").expect("Failed to create feed dir");
+        }
 
         let content = reqwest::get(url).await?.bytes().await?;
-        let channel = Channel::read_from(&content[..])?;
-        let feed = Feed::from_channel(channel)?;
-        self.index.meta.push(feed.meta.clone());
-        feed.save();
-        self.save_index();
+        match Channel::read_from(&content[..]) {
+            Ok(channel) => {
+                let feed = Feed::from_channel(channel)?;
+                self.index.meta.push(feed.meta.clone());
+                _ = feed.save();
+                self.save_index();
+            },
+            Err(e) => {
+                println!("Failed to add channel: {}", e)
+            }
+        }
         Ok(())
     }
 }
