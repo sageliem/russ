@@ -5,6 +5,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
 };
+use std::error::Error;
 
 use crate::app::{App, Screen};
 
@@ -31,62 +32,63 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         Screen::MainMenu => {
             let mut feed_titles = Vec::<ListItem>::new();
 
-            for feed in &app.channels.items {
+            app.index.meta.iter().for_each(|meta| {
                 feed_titles.push(ListItem::new(Line::from(Span::styled(
-                    format!("{}", feed.channel.title()),
+                    format!("{}", meta.title),
                     Style::default().fg(Color::Yellow),
                 ))));
-            }
+            });
 
             let feed_list = List::new(feed_titles)
                 .highlight_style(Style::new().bg(Color::Green).add_modifier(Modifier::BOLD));
 
-            frame.render_stateful_widget(feed_list, chunks[1], &mut app.channels.state);
+            frame.render_stateful_widget(feed_list, chunks[1], &mut app.index.state);
         }
         Screen::FeedMenu => {
             let mut post_titles = Vec::<ListItem>::new();
 
-            match app.channels.currently_viewing {
+            match app.index.state.selected() {
                 Some(i) => {
-                    for post in app.channels.items[i].channel.items() {
+                    for post in &app.feeds[i].posts {
                         post_titles.push(ListItem::new(Line::from(Span::styled(
-                            format!("{}", post.title().unwrap()),
+                            format!("{}", post.title),
                             Style::default().fg(Color::Green),
                         ))));
                     }
                     let posts_list = List::new(post_titles).highlight_style(
                         Style::new().bg(Color::Green).add_modifier(Modifier::BOLD),
                     );
-                    frame.render_stateful_widget(posts_list, chunks[1], &mut app.channels.items[i].state);
+                    frame.render_stateful_widget(
+                        posts_list,
+                        chunks[1],
+                        &mut app.feeds[i].state,
+                    );
                 }
                 None => {
                     frame.render_widget(Paragraph::new("No feed selected."), chunks[1]);
                 }
             }
         }
+        Screen::Reader => {
+            match reader(app) {
+                Ok(paragraph) => frame.render_widget(paragraph, chunks[1]),
+                Err(e) => println!("error: {}", e),
+            }
+        }
         _ => {}
     }
 }
 
-/// helper function to create a centered rect using up certain percentage of the available rect `r`
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    // Cut the given rectangle into three vertical pieces
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    // Then cut the middle vertical piece into three width-wise pieces
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1] // Return the middle chunk
+fn reader(app: &App) -> Result<Paragraph, Box<dyn Error>> {
+    let ch = app.index.state.selected().unwrap();
+    let p = app.feeds[ch].state.selected().unwrap();
+    let text = app.feeds[ch].posts[p].content.clone();
+    // let text = match app.channels.items[ch].channel.items()[p].content() {
+    //     Some(t) => t,
+    //     None => "Failed to get content of post.",
+    // };
+    Ok(Paragraph::new(text)
+        .style(Style::new().fg(Color::Black))
+        .wrap(Wrap { trim: true })
+        .scroll(app.feeds[ch].posts[p].scroll))
 }
