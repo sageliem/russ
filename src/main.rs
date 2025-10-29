@@ -12,6 +12,8 @@ use ratatui::{
 
 mod app;
 mod ui;
+mod feed;
+mod styling;
 
 use crate::{
     app::{App, Screen},

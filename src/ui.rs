@@ -56,7 +56,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         ))));
                     }
                     let posts_list = List::new(post_titles).highlight_style(
-                        Style::new().bg(Color::Green).add_modifier(Modifier::BOLD),
+                        Style::new().bg(Color::Red).add_modifier(Modifier::BOLD),
                     );
                     frame.render_stateful_widget(
                         posts_list,
