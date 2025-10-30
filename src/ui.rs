@@ -7,7 +7,10 @@ use ratatui::{
 };
 use std::error::Error;
 
-use crate::app::{App, Screen};
+use crate::{
+    app::{App, Screen},
+    styling::xml_to_ratatui,
+};
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
@@ -55,26 +58,19 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             Style::default().fg(Color::Green),
                         ))));
                     }
-                    let posts_list = List::new(post_titles).highlight_style(
-                        Style::new().bg(Color::Red).add_modifier(Modifier::BOLD),
-                    );
-                    frame.render_stateful_widget(
-                        posts_list,
-                        chunks[1],
-                        &mut app.feeds[i].state,
-                    );
+                    let posts_list = List::new(post_titles)
+                        .highlight_style(Style::new().bg(Color::Red).add_modifier(Modifier::BOLD));
+                    frame.render_stateful_widget(posts_list, chunks[1], &mut app.feeds[i].state);
                 }
                 None => {
                     frame.render_widget(Paragraph::new("No feed selected."), chunks[1]);
                 }
             }
         }
-        Screen::Reader => {
-            match reader(app) {
-                Ok(paragraph) => frame.render_widget(paragraph, chunks[1]),
-                Err(e) => println!("error: {}", e),
-            }
-        }
+        Screen::Reader => match reader(app) {
+            Ok(paragraph) => frame.render_widget(paragraph, chunks[1]),
+            Err(e) => println!("error: {}", e),
+        },
         _ => {}
     }
 }
@@ -82,13 +78,10 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 fn reader(app: &App) -> Result<Paragraph, Box<dyn Error>> {
     let ch = app.index.state.selected().unwrap();
     let p = app.feeds[ch].state.selected().unwrap();
-    let text = app.feeds[ch].posts[p].content.clone();
-    // let text = match app.channels.items[ch].channel.items()[p].content() {
-    //     Some(t) => t,
-    //     None => "Failed to get content of post.",
-    // };
+    // let text = app.feeds[ch].posts[p].content.clone();
+    let text = xml_to_ratatui(app.feeds[ch].posts[p].content.as_bytes());
     Ok(Paragraph::new(text)
-        .style(Style::new().fg(Color::Black))
+        .style(Style::new().fg(Color::DarkGray))
         .wrap(Wrap { trim: true })
         .scroll(app.feeds[ch].posts[p].scroll))
 }

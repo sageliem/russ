@@ -12,9 +12,9 @@ use std::{
 
 // TODO remove
 use html2text::from_read;
-use ratatui::{crossterm::terminal, widgets::ListState};
+use ratatui::{crossterm::terminal, text::Text, widgets::ListState};
 
-use crate::styling;
+use crate::styling::xml_to_ratatui;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Metadata {
@@ -40,10 +40,11 @@ impl Post {
             Some(t) => t.as_bytes(),
             None => "Could not get content from post.".as_bytes(),
         };
-        let text_content = match from_read(html_content, usize::from(terminal::size().unwrap().0)) {
-            Ok(t) => t,
-            Err(e) => e.to_string(),
-        };
+        let text_content = String::from_utf8(html_content.to_vec()).unwrap();
+        // let text_content = match from_read(html_content, usize::from(terminal::size().unwrap().0)) {
+        //     Ok(t) => t,
+        //     Err(e) => e.to_string(),
+        // };
 
         Ok(Post {
             title: title,

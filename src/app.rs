@@ -91,7 +91,7 @@ impl App {
     }
 
     pub fn save_index(&self) {
-        self.index.save();
+        _ = self.index.save();
     }
 
     pub fn load_all(&mut self) -> Result<(), Box<dyn Error>> {
