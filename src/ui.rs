@@ -9,7 +9,7 @@ use std::error::Error;
 
 use crate::{
     app::{App, Screen},
-    styling::xml_to_ratatui,
+    styling::html_to_ratatui,
 };
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
@@ -79,7 +79,7 @@ fn reader(app: &App) -> Result<Paragraph, Box<dyn Error>> {
     let ch = app.index.state.selected().unwrap();
     let p = app.feeds[ch].state.selected().unwrap();
     // let text = app.feeds[ch].posts[p].content.clone();
-    let text = xml_to_ratatui(app.feeds[ch].posts[p].content.as_bytes());
+    let text = html_to_ratatui(app.feeds[ch].posts[p].content.as_bytes());
     Ok(Paragraph::new(text)
         .style(Style::new().fg(Color::DarkGray))
         .wrap(Wrap { trim: true })

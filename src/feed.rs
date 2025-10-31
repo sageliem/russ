@@ -14,8 +14,6 @@ use std::{
 use html2text::from_read;
 use ratatui::{crossterm::terminal, text::Text, widgets::ListState};
 
-use crate::styling::xml_to_ratatui;
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Metadata {
     pub id: String,

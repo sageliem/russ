@@ -11,9 +11,9 @@ use ratatui::{
 };
 
 mod app;
-mod ui;
 mod feed;
 mod styling;
+mod ui;
 
 use crate::{
     app::{App, Screen},
@@ -22,13 +22,9 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-
     let mut app = App::new();
 
     app.load_from_config().await?;
-    // app.add_channel("https://ictnews.org/feed").await?;
-    // app.add_channel("https://daniel.haxx.se/blog/feed/").await?;
-
     app.load_all()?;
 
     enable_raw_mode()?;
@@ -101,7 +97,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         app.feeds[ch].posts[p].scroll_up();
                     }
                     _ => {}
-                }
+                },
                 Screen::FeedMenu => match key.code {
                     KeyCode::Char('q') => {
                         app.current_screen = Screen::MainMenu;

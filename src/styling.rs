@@ -1,49 +1,59 @@
-use quick_xml::{events::Event, reader::Reader};
+// use quick_xml::{events::Event, reader::Reader};
+use html5ever::tendril::TendrilSink;
+use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use ratatui::{
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span, Text},
 };
 
-pub fn xml_to_ratatui(xml: &[u8]) -> Text {
-    let mut reader = Reader::from_reader(xml);
-    reader.config_mut().trim_text(true);
-    // println!("{}", str::from_utf8(xml).unwrap());
+pub fn html_to_ratatui(mut html: &[u8]) -> Text {
+    let dom = html5ever::parse_document(RcDom::default(), Default::default())
+        .from_utf8()
+        .read_from(&mut html)
+        .unwrap();
 
-    let mut text = Text::default();
-    let mut buf = Vec::new();
-    let mut tags: Vec<Vec<u8>> = Vec::new();
-    tags.push(b"p".as_ref().to_owned());
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Err(e) => panic!("Error: {}", e),
-            Ok(Event::Eof) => break,
-            Ok(Event::Start(ref e)) => tags.push(e.name().as_ref().to_owned()),
-            Ok(Event::End(e)) => {
-                tags.pop();
-                ()
+    fn dom_to_ratatui(node: &Handle, parent_style: Style) -> Text<'static> {
+        match &node.data {
+            NodeData::Text { contents } => {
+                let s = contents.borrow().to_string();
+                Text::from(Span::styled(s, parent_style))
             }
-            Ok(Event::Text(e)) => text.push_span(match tags.last().unwrap().as_slice() {
-                b"h1" => Span::styled(
-                    e.decode().unwrap().into_owned(),
-                    Style::default().add_modifier(Modifier::BOLD),
-                ),
-                b"strong" => Span::styled(
-                    e.decode().unwrap().into_owned(),
-                    Style::default().add_modifier(Modifier::BOLD),
-                ),
-                b"p" => {
-                    let mut t = e.decode().unwrap().into_owned();
-                    t.push('\n');
-                    Span::styled(t, Style::default())
+            NodeData::Element { name, .. } => {
+                let mut lines: Vec<Line> = Vec::new();
+                let mut style = parent_style;
+                let tag_name = name.local.as_ref();
+                match tag_name {
+                    "h1" => {
+                        style = style
+                            .add_modifier(Modifier::BOLD)
+                            .add_modifier(Modifier::UNDERLINED)
+                    }
+                    "b" | "strong" => {
+                        style = style.add_modifier(Modifier::BOLD);
+                    }
+                    "em" => {
+                        style = style.add_modifier(Modifier::ITALIC);
+                    }
+                    "a" => style = style.add_modifier(Modifier::UNDERLINED).fg(Color::Blue),
+                    _ => {}
                 }
-                b"em" => Span::styled(
-                    e.decode().unwrap().into_owned(),
-                    Style::default().add_modifier(Modifier::ITALIC),
-                ),
-                _ => Span::from(e.decode().unwrap().into_owned()),
-            }),
-            _ => {}
+                for child in &node.children.clone().into_inner() {
+                    let child_text = dom_to_ratatui(child, style);
+                    lines.extend(child_text.lines.into_iter().clone().collect::<Vec<_>>());
+                }
+                Text::from(lines)
+            }
+            NodeData::Document => {
+                let mut lines: Vec<Line> = Vec::new();
+                for child in &node.children.clone().into_inner() {
+                    let child_text = dom_to_ratatui(child, parent_style);
+                    lines.extend(child_text.lines.into_iter().clone().collect::<Vec<_>>());
+                }
+                Text::from(lines)
+            }
+            _ => Text::raw("blah"),
         }
     }
-    text
+
+    dom_to_ratatui(&dom.document, Style::default().fg(Color::Red))
 }
