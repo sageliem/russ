@@ -3,7 +3,9 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+    widgets::{
+        Block, BorderType, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap,
+    },
 };
 use std::error::Error;
 
@@ -14,22 +16,9 @@ use crate::{
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Min(1),
-            Constraint::Length(3),
-        ])
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(30), Constraint::Min(1)])
         .split(frame.area());
-
-    let title_block = Block::default()
-        .borders(Borders::ALL)
-        .style(Style::default());
-
-    let title = Paragraph::new(Text::styled("Reader", Style::default().fg(Color::Green)))
-        .block(title_block);
-
-    frame.render_widget(title, chunks[0]);
 
     match &app.current_screen {
         Screen::MainMenu => {
@@ -45,7 +34,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let feed_list = List::new(feed_titles)
                 .highlight_style(Style::new().bg(Color::Green).add_modifier(Modifier::BOLD));
 
-            frame.render_stateful_widget(feed_list, chunks[1], &mut app.index.state);
+            frame.render_stateful_widget(feed_list, chunks[0], &mut app.index.state);
         }
         Screen::FeedMenu => {
             let mut post_titles = Vec::<ListItem>::new();
@@ -60,17 +49,36 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     }
                     let posts_list = List::new(post_titles)
                         .highlight_style(Style::new().bg(Color::Red).add_modifier(Modifier::BOLD));
-                    frame.render_stateful_widget(posts_list, chunks[1], &mut app.feeds[i].state);
+                    frame.render_stateful_widget(posts_list, chunks[0], &mut app.feeds[i].state);
                 }
                 None => {
-                    frame.render_widget(Paragraph::new("No feed selected."), chunks[1]);
+                    frame.render_widget(Paragraph::new("No feed selected."), chunks[0]);
                 }
             }
         }
-        Screen::Reader => match reader(app) {
-            Ok(paragraph) => frame.render_widget(paragraph, chunks[1]),
-            Err(e) => println!("error: {}", e),
-        },
+        Screen::Reader => {
+            let mut post_titles = Vec::<ListItem>::new();
+            match app.index.state.selected() {
+                Some(i) => {
+                    for post in &app.feeds[i].posts {
+                        post_titles.push(ListItem::new(Line::from(Span::styled(
+                            format!("{}", post.title),
+                            Style::default().fg(Color::Green),
+                        ))));
+                    }
+                    let posts_list = List::new(post_titles)
+                        .highlight_style(Style::new().bg(Color::Red).add_modifier(Modifier::BOLD));
+                    frame.render_stateful_widget(posts_list, chunks[0], &mut app.feeds[i].state);
+                }
+                None => {
+                    frame.render_widget(Paragraph::new("No feed selected."), chunks[0]);
+                }
+            }
+            match reader(app) {
+                Ok(paragraph) => frame.render_widget(paragraph, chunks[1]),
+                Err(e) => println!("error: {}", e),
+            }
+        }
         _ => {}
     }
 }
@@ -78,10 +86,19 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 fn reader(app: &App) -> Result<Paragraph, Box<dyn Error>> {
     let ch = app.index.state.selected().unwrap();
     let p = app.feeds[ch].state.selected().unwrap();
-    // let text = app.feeds[ch].posts[p].content.clone();
+
     let text = html_to_ratatui(app.feeds[ch].posts[p].content.as_bytes());
+    let title = app.feeds[ch].posts[p].title.as_str();
+
     Ok(Paragraph::new(text)
         .style(Style::new().fg(Color::DarkGray))
-        .wrap(Wrap { trim: true })
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(Line::from(title))
+                .border_type(BorderType::Rounded)
+                .padding(Padding::symmetric(8, 0)),
+        )
+        .wrap(Wrap { trim: false })
         .scroll(app.feeds[ch].posts[p].scroll))
 }
