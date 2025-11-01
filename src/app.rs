@@ -57,6 +57,17 @@ pub struct Config {
     pub feeds: Vec<String>,
 }
 
+impl Default for Config {
+    fn default() -> Config {
+        let home_path = env::home_dir().unwrap();
+        Config {
+            feed_dir: String::from(home_path.join(".russ/feeds").to_str().unwrap()),
+            config_dir: String::from(home_path.join(".config/russ").to_str().unwrap()),
+            feeds: Vec::default(),
+        }
+    }
+}
+
 pub struct App {
     pub current_screen: Screen,
     pub index: Index,
