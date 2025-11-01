@@ -1,7 +1,5 @@
 # RSS reader for the terminal
---------------------------
-### simple RSS/Atom reader written in Rust with vim-like navigation
---------------------------
+simple RSS/Atom reader written in Rust with vim-like navigation
 ## Configuration
 Add feeds with the config file at `$HOME/.config/russ/config.toml`:
 
