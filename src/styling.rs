@@ -5,6 +5,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
 };
+use std::collections::VecDeque;
 
 pub fn html_to_ratatui(mut html: &[u8]) -> Text {
     let dom = html5ever::parse_document(RcDom::default(), Default::default())
@@ -15,18 +16,25 @@ pub fn html_to_ratatui(mut html: &[u8]) -> Text {
     fn dom_to_ratatui(node: &Handle, parent_style: Style) -> Text<'static> {
         match &node.data {
             NodeData::Text { contents } => {
-                let s = contents.borrow().to_string();
-                Text::from(Span::styled(s, parent_style))
+                let s: String = contents.borrow().to_string();
+                let mut text = Text::default();
+                text.push_line(Line::from(Span::styled(s, parent_style)));
+                text
+                // let mut text = Text::styled("", parent_style);
+                // for word in s.split_whitespace() {
+                //     text.push_span(Span::styled(word.to_string(), parent_style));
+                //     text.push_span(Span::styled(" ", parent_style));
+                // }
+                // text
             }
             NodeData::Element { name, .. } => {
-                let mut lines: Vec<Line> = Vec::new();
+                let mut text = Text::default();
                 let mut style = parent_style;
-                let tag_name = name.local.as_ref();
-                match tag_name {
+                match name.local.as_ref() {
                     "h1" => {
                         style = style
                             .add_modifier(Modifier::BOLD)
-                            .add_modifier(Modifier::UNDERLINED)
+                            .add_modifier(Modifier::UNDERLINED);
                     }
                     "b" | "strong" => {
                         style = style.add_modifier(Modifier::BOLD);
@@ -34,24 +42,56 @@ pub fn html_to_ratatui(mut html: &[u8]) -> Text {
                     "em" => {
                         style = style.add_modifier(Modifier::ITALIC);
                     }
-                    "a" => style = style.add_modifier(Modifier::UNDERLINED).fg(Color::Blue),
+                    "a" => {
+                        style = style.add_modifier(Modifier::UNDERLINED).fg(Color::Blue);
+                    }
                     _ => {}
                 }
                 for child in &node.children.clone().into_inner() {
+                    let is_block = if let NodeData::Element { name, .. } = &child.data {
+                        matches!(
+                            name.local.as_ref(),
+                            "h1" | "p" | "br" | "main" | "div" | "html" | "body"
+                        )
+                    } else {
+                        false
+                    };
+
                     let child_text = dom_to_ratatui(child, style);
-                    lines.extend(child_text.lines.into_iter().clone().collect::<Vec<_>>());
+
+                    if child_text.lines.is_empty() {
+                        continue;
+                    };
+
+                    if is_block {
+                        text.push_line(Line::default());
+                        for line in child_text.lines {
+                            text.push_line(line);
+                        }
+                    } else {
+                        if text.lines.is_empty() {
+                            text.push_line(Line::default())
+                        }
+                        for line in child_text.lines {
+                            for span in line.spans {
+                                text.push_span(span);
+                            }
+                        }
+                    }
                 }
-                Text::from(lines)
+                text
             }
             NodeData::Document => {
-                let mut lines: Vec<Line> = Vec::new();
+                let mut text = Text::default();
                 for child in &node.children.clone().into_inner() {
                     let child_text = dom_to_ratatui(child, parent_style);
-                    lines.extend(child_text.lines.into_iter().clone().collect::<Vec<_>>());
+                    for line in child_text.lines {
+                        text.push_line(line)
+                    }
                 }
-                Text::from(lines)
+                text
             }
-            _ => Text::raw("blah"),
+            _ => Text::raw("Could not read"),
         }
     }
 
