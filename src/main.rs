@@ -68,6 +68,7 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     }
                     KeyCode::Char('j') => app.index.state.select_next(),
                     KeyCode::Char('k') => app.index.state.select_previous(),
+                    KeyCode::Char('l') => app.current_screen = Screen::FeedMenu,
                     KeyCode::Enter => {
                         app.current_screen = Screen::FeedMenu;
                     }
@@ -96,9 +97,12 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         let p = app.feeds[ch].state.selected().unwrap();
                         app.feeds[ch].posts[p].scroll_up();
                     }
+                    KeyCode::Char('h') => app.current_screen = Screen::FeedMenu,
                     _ => {}
                 },
                 Screen::FeedMenu => match key.code {
+                    KeyCode::Char('h') => app.current_screen = Screen::MainMenu,
+                    KeyCode::Char('l') => app.current_screen = Screen::Reader,
                     KeyCode::Char('q') => {
                         app.current_screen = Screen::MainMenu;
                     }
@@ -111,8 +115,6 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                         app.feeds[ch].state.select_previous();
                     }
                     KeyCode::Enter => {
-                        let ch = app.index.state.selected().unwrap();
-                        let p = app.feeds[ch].state.selected().unwrap();
                         app.current_screen = Screen::Reader;
                     }
                     _ => {}

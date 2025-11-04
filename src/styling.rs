@@ -1,13 +1,12 @@
-// use quick_xml::{events::Event, reader::Reader};
 use html5ever::tendril::TendrilSink;
 use markup5ever_rcdom::{Handle, NodeData, RcDom};
 use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
 };
-use std::collections::VecDeque;
+// use ratatui_image::{StatefulImage, picker::Picker, protocol::StatefulProtocol};
 
-pub fn html_to_ratatui(mut html: &[u8]) -> Text {
+pub fn html_to_ratatui<'a>(mut html: &'a [u8]) -> Text<'a> {
     let dom = html5ever::parse_document(RcDom::default(), Default::default())
         .from_utf8()
         .read_from(&mut html)
@@ -20,12 +19,6 @@ pub fn html_to_ratatui(mut html: &[u8]) -> Text {
                 let mut text = Text::default();
                 text.push_line(Line::from(Span::styled(s, parent_style)));
                 text
-                // let mut text = Text::styled("", parent_style);
-                // for word in s.split_whitespace() {
-                //     text.push_span(Span::styled(word.to_string(), parent_style));
-                //     text.push_span(Span::styled(" ", parent_style));
-                // }
-                // text
             }
             NodeData::Element { name, .. } => {
                 let mut text = Text::default();
@@ -45,6 +38,7 @@ pub fn html_to_ratatui(mut html: &[u8]) -> Text {
                     "a" => {
                         style = style.add_modifier(Modifier::UNDERLINED).fg(Color::Blue);
                     }
+                    "style" => return Text::default(),
                     _ => {}
                 }
                 for child in &node.children.clone().into_inner() {
